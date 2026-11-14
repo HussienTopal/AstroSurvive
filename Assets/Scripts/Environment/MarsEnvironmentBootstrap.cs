@@ -2,21 +2,33 @@ using UnityEngine;
 using AstroSurvive.Player;
 using AstroSurvive.Interaction;
 using AstroSurvive.UI;
+using AstroSurvive.Core;
 
 namespace AstroSurvive.Environment
 {
-    [ExecuteAlways]
     public class MarsEnvironmentBootstrap : MonoBehaviour
     {
         [Header("Auto Setup")]
-        public bool buildOnStart = true;
-        [SerializeField] private bool hasGenerated = false;
+        public bool buildOnStart = false;
+        [SerializeField] private bool hasGenerated = true;
 
         private void Start()
         {
-            if (buildOnStart && !hasGenerated)
+            // All objects are directly in the scene hierarchy for full visual editability.
+        }
+
+        private void EnsureCoreManagers()
+        {
+            if (FindFirstObjectByType<SolGameManager>() == null)
             {
-                GenerateMarsWorld();
+                GameObject gm = new GameObject("--- SolGameManager ---");
+                gm.AddComponent<SolGameManager>();
+            }
+
+            if (FindFirstObjectByType<NasaEventManager>() == null)
+            {
+                GameObject nm = new GameObject("--- NasaEventManager ---");
+                nm.AddComponent<NasaEventManager>();
             }
         }
 
@@ -285,6 +297,15 @@ namespace AstroSurvive.Environment
                 sampleComp.sampleType = sampleNames[i];
                 sampleComp.scientificValue = 30f + (i * 15f);
             }
+
+            // 11. Interactive Sol Cycle Management Terminal
+            GameObject solTermObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            solTermObj.name = "Outpost Sol Terminal";
+            solTermObj.transform.parent = root.transform;
+            solTermObj.transform.position = new Vector3(-0.8f, 0.75f, -4.6f);
+            solTermObj.transform.localScale = new Vector3(0.9f, 1.4f, 0.6f);
+            solTermObj.GetComponent<Renderer>().sharedMaterial = frameMat;
+            solTermObj.AddComponent<SolTerminal>();
 
             hasGenerated = true;
         }

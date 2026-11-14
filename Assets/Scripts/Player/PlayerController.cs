@@ -23,11 +23,14 @@ namespace AstroSurvive.Player
         public float acceleration = 12f;
 
         [Header("Mars Physics")]
-        [Tooltip("Mars surface gravity is ~3.71 m/s^2. -5.5f gives a great responsive space feel in Unity.")]
-        public float gravity = -5.5f;
+        [Tooltip("Physical Mars surface gravity (m/s^2)")]
+        public float gravity = -3.72f;
 
-        [Tooltip("Jump velocity for low-gravity Mars leaps")]
-        public float jumpHeight = 1.75f;
+        [Tooltip("Jump apex height on Mars")]
+        public float jumpHeight = 1.35f;
+
+        [Tooltip("Snappy fall multiplier to eliminate floaty moon jumps")]
+        public float fallMultiplier = 2.4f;
 
         [Header("Crouch Configuration")]
         public float standingHeight = 2.0f;
@@ -70,6 +73,8 @@ namespace AstroSurvive.Player
         private float bobTimer;
         private Vector3 initialCamPos;
 
+        public static bool InputLocked = false;
+
         public bool IsCrouching => isCrouching;
         public bool IsRunning => isRunning;
         public bool IsGrounded => isGrounded;
@@ -104,8 +109,24 @@ namespace AstroSurvive.Player
             Cursor.visible = false;
         }
 
+        public bool IsDead => currentOxygen <= 0f;
+
         private void Update()
         {
+            // Oxygen Death: When O2 is 0%, freeze player entirely to simulate Game Over
+            if (currentOxygen <= 0f)
+            {
+                currentSpeed = 0f;
+                moveVelocity = Vector3.zero;
+                isRunning = false;
+                if (!characterController.isGrounded)
+                {
+                    verticalVelocity += gravity * fallMultiplier * Time.deltaTime;
+                    characterController.Move(Vector3.up * verticalVelocity * Time.deltaTime);
+                }
+                return;
+            }
+
             HandleCursorToggle();
             HandleMouseLook();
             HandleSurvivalStats();
@@ -116,6 +137,7 @@ namespace AstroSurvive.Player
 
         private void HandleCursorToggle()
         {
+            if (InputLocked) return;
             bool escapePressed = false;
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null)
@@ -140,7 +162,7 @@ namespace AstroSurvive.Player
 
         private void HandleMouseLook()
         {
-            if (Cursor.lockState != CursorLockMode.Locked) return;
+            if (currentOxygen <= 0f || InputLocked || Cursor.lockState != CursorLockMode.Locked) return;
 
             Vector2 mouseDelta = Vector2.zero;
 #if ENABLE_INPUT_SYSTEM
@@ -176,6 +198,12 @@ namespace AstroSurvive.Player
             if (isRunning && currentSpeed > walkSpeed + 0.5f)
             {
                 currentStamina = Mathf.Max(0f, currentStamina - (staminaDrainRate * Time.deltaTime));
+                if (currentStamina <= 0f)
+                {
+                    // Explicitly force sprint false and return to walk speed instantly
+                    isRunning = false;
+                    currentSpeed = walkSpeed;
+                }
             }
             else
             {
@@ -236,6 +264,15 @@ namespace AstroSurvive.Player
             bool sprintKey = false;
             bool jumpKey = false;
 
+            if (InputLocked)
+            {
+                currentSpeed = Mathf.Lerp(currentSpeed, 0f, Time.deltaTime * acceleration);
+                moveVelocity = Vector3.Lerp(moveVelocity, Vector3.zero, Time.deltaTime * acceleration);
+                verticalVelocity += gravity * Time.deltaTime;
+                characterController.Move(Vector3.up * verticalVelocity * Time.deltaTime);
+                return;
+            }
+
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null)
             {
@@ -254,7 +291,9 @@ namespace AstroSurvive.Player
             jumpKey = Input.GetKeyDown(KeyCode.Space);
 #endif
 
-            inputDir.Normalize();
+            // Guard: only normalize if there is actual input (prevents zero-vector IsNormalized assertion)
+            if (inputDir.sqrMagnitude > 0.01f)
+                inputDir.Normalize();
 
             // Determine target speed based on state
             float targetSpeed = walkSpeed;
@@ -263,7 +302,14 @@ namespace AstroSurvive.Player
                 targetSpeed = crouchSpeed;
                 isRunning = false;
             }
-            else if (sprintKey && inputDir.y > 0.1f && currentStamina > 5f)
+            else if (currentStamina <= 0f)
+            {
+                // Force walk speed instantly when stamina is 0
+                targetSpeed = walkSpeed;
+                isRunning = false;
+                currentSpeed = Mathf.Min(currentSpeed, walkSpeed);
+            }
+            else if (sprintKey && inputDir.y > 0.1f && currentStamina > 8f)
             {
                 targetSpeed = runSpeed;
                 isRunning = true;
@@ -281,19 +327,28 @@ namespace AstroSurvive.Player
 
             currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * acceleration);
 
-            // Direction relative to player rotation
-            Vector3 targetMoveDir = (transform.right * inputDir.x + transform.forward * inputDir.y).normalized;
+            // Direction relative to player rotation (guard zero input to avoid zero-vector normalization)
+            Vector3 targetMoveDir = Vector3.zero;
+            if (inputDir.sqrMagnitude > 0.001f)
+                targetMoveDir = (transform.right * inputDir.x + transform.forward * inputDir.y).normalized;
             moveVelocity = Vector3.Lerp(moveVelocity, targetMoveDir * currentSpeed, Time.deltaTime * acceleration);
 
-            // Jumping on Mars
-            if (jumpKey && isGrounded && !isCrouching)
+            // Snappy Mars Jumping
+            if (jumpKey && isGrounded && !isCrouching && currentOxygen > 0f)
             {
                 // v = sqrt(2 * g * h)
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
             }
 
-            // Apply Mars gravity
-            verticalVelocity += gravity * Time.deltaTime;
+            // Snappy Mars gravity: normal on ascent, accelerated on descent to avoid floaty moon jump
+            if (verticalVelocity < 0f && !isGrounded)
+            {
+                verticalVelocity += gravity * fallMultiplier * Time.deltaTime;
+            }
+            else
+            {
+                verticalVelocity += gravity * Time.deltaTime;
+            }
 
             // Combine horizontal and vertical motion
             Vector3 finalMotion = moveVelocity + Vector3.up * verticalVelocity;
@@ -326,6 +381,11 @@ namespace AstroSurvive.Player
         public void RefillOxygen(float amount)
         {
             currentOxygen = Mathf.Min(maxOxygen, currentOxygen + amount);
+        }
+
+        public void ModifyOxygen(float amount)
+        {
+            currentOxygen = Mathf.Clamp(currentOxygen + amount, 0f, maxOxygen);
         }
 
         public void RestoreStamina(float amount)

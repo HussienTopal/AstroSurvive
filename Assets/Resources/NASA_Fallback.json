@@ -1,0 +1,39 @@
+{
+  "space_weather_events": [
+    {
+      "sol_day": 1,
+      "event_type": "CME_Impact",
+      "severity": "Moderate",
+      "nasa_flr_id": "2024-05-10T12:00:00Z",
+      "educational_note": "Coronal Mass Ejections (CMEs) hurl billion-ton clouds of plasma into space, requiring immediate shielding."
+    },
+    {
+      "sol_day": 2,
+      "event_type": "Radiation_Storm",
+      "severity": "High",
+      "nasa_flr_id": "2024-05-12T09:00:00Z",
+      "educational_note": "RadLab Data: Astronauts on the ISS receive about 10 times the radiation of a typical person on Earth."
+    },
+    {
+      "sol_day": 3,
+      "event_type": "Solar_Energetic_Particles",
+      "severity": "Severe",
+      "nasa_flr_id": "2024-05-14T03:30:00Z",
+      "educational_note": "NASA DONKI Alert: High-energy solar protons can penetrate spacecraft hulls, damaging sensitive life-support electronics."
+    },
+    {
+      "sol_day": 4,
+      "event_type": "Geomagnetic_Disturbance",
+      "severity": "Moderate",
+      "nasa_flr_id": "2024-05-16T18:15:00Z",
+      "educational_note": "Mars lacks a global dipole magnetic field, leaving its surface exposed to atmospheric stripping and induced currents."
+    },
+    {
+      "sol_day": 5,
+      "event_type": "High_Speed_Solar_Stream",
+      "severity": "Extreme",
+      "nasa_flr_id": "2024-05-19T00:00:00Z",
+      "educational_note": "Coronal holes channel fast solar winds exceeding 700 km/s, requiring full base power diversion to survival shields."
+    }
+  ]
+}

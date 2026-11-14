@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using AstroSurvive.Player;
 using AstroSurvive.Interaction;
 using AstroSurvive.UI;
+using AstroSurvive.Core;
 
 namespace AstroSurvive.Editor
 {
@@ -92,6 +93,22 @@ namespace AstroSurvive.Editor
 
             // E. Datapad Lore Log on crate
             BuildResearchDatapad(outpostRoot.transform, frameMat);
+
+            // F. 5-Sol Base Management & NASA Event System
+            GameObject solManagerObj = new GameObject("--- SolGameManager ---");
+            solManagerObj.AddComponent<SolGameManager>();
+
+            GameObject nasaManagerObj = new GameObject("--- NasaEventManager ---");
+            nasaManagerObj.AddComponent<NasaEventManager>();
+
+            // G. Interactive Sol Cycle Management Terminal
+            GameObject solTermObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            solTermObj.name = "Outpost Sol Terminal";
+            solTermObj.transform.parent = outpostRoot.transform;
+            solTermObj.transform.position = new Vector3(-1.0f, 0.75f, -4.5f);
+            solTermObj.transform.localScale = new Vector3(0.9f, 1.4f, 0.6f);
+            solTermObj.GetComponent<Renderer>().sharedMaterial = frameMat;
+            solTermObj.AddComponent<SolTerminal>();
 
             // 8. Build Player
             BuildPlayer(new Vector3(0f, 1f, -12f));
